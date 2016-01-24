@@ -1,0 +1,286 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project basedir="." name="FractalizeRs applet building">
+
+    <!-- Edit the Common.properties file to setup vital constants-->
+    <property file="Common.properties"/>
+
+    <!-- Configuration section starts -->
+    <target name="compile.all" depends="clean.all">
+        <compile_applet APPLETSRC="${SOURCE_DIR}/Helloworld"/>
+    </target>
+
+    <target name="convert.all" depends="compile.all">
+        <convert_applet APPLETNAME="HelloWorld" APPLETAID="${APPLETAIDPREFIX}:0x10:0x01"
+                        PACKAGENAME="helloWorld" PACKAGEAID="${APPLETAIDPREFIX}:0x10" VERSION="1.0"/>
+    </target>
+
+    <target name="generatecap.all" depends="convert.all">
+        <generate_cap PACKAGENAMEUNPACKAGED="helloWorld" APPLETNAME="HelloWorld"/>
+    </target>
+
+    <target name="verifycap.all" depends="generatecap.all">
+        <verify_cap PACKAGENAMEUNPACKAGED="helloWorld" APPLETNAME="HelloWorld"
+                    ADDEXPFILES="${OUTPUT_DIR}/HelloWorld/javacard/HelloWorld.exp"/>
+    </target>
+
+    <target name="binarize.all.standard" depends="verifycap.all">
+        <generate_applet_bin_std PACKAGENAMEUNPACKAGED="helloWorld" APPLETNAME="HelloWorld"/>
+    </target>
+
+    <target name="binarize.all.egate" depends="verifycap.all">
+        <generate_applet_bin_egate PACKAGENAMEUNPACKAGED="helloWorld" MODULENAME="HelloWorld"/>
+    </target>
+
+    <!-- ======================================================== -->
+    <!-- Configuration section ends. Do not edit below this line -->
+    <!-- ======================================================== -->
+
+    <macrodef name="compile_applet">
+        <attribute name="APPLETSRC"/>
+        <sequential>
+            <mkdir dir="${OUTPUT_DIR}"/>
+            <javac debug="on" verbose="on" optimize="off" fork="true" executable="${JAVA_BUILD_HOME}/bin/javac"
+                   srcdir="@{APPLETSRC}"
+                   destdir="${OUTPUT_DIR}" target="${VM_TARGET_VERSION}" source="${VM_SOURCE_VERSION}">
+                <classpath>
+                    <pathelement location="${API_JAR}"/>
+                    <pathelement location="."/>
+                    <pathelement path="${java.class.path}"/>
+                </classpath>
+            </javac>
+        </sequential>
+    </macrodef>
+
+    <macrodef name="convert_applet">
+        <attribute name="APPLETAID"/>
+        <attribute name="APPLETNAME"/>
+        <attribute name="PACKAGENAME"/>
+        <attribute name="PACKAGEAID"/>
+        <attribute name="VERSION"/>
+        <sequential>
+            <copy todir="${OUTPUT_DIR}">
+                <fileset dir="${API_EXPORT_FILES}"/>
+            </copy>
+            <java classname="com.sun.javacard.converter.Converter" fork="true" failonerror="true">
+                <arg line="-classdir '${OUTPUT_DIR}' -d '${OUTPUT_DIR}' -verbose -exportpath '${OUTPUT_DIR}' -out CAP JCA EXP -applet @{APPLETAID} @{APPLETNAME} @{PACKAGENAME} @{PACKAGEAID} @{VERSION}"/>
+                <classpath>
+                    <pathelement location="${JC_HOME}/lib/converter.jar"/>
+                    <pathelement location="${JC_HOME}/lib/offcardverifier.jar"/>
+                    <pathelement location="."/>
+                    <pathelement path="${java.class.path}"/>
+                </classpath>
+            </java>
+        </sequential>
+    </macrodef>
+
+    <macrodef name="convert_library">
+        <attribute name="PACKAGENAME"/>
+        <attribute name="PACKAGEAID"/>
+        <attribute name="VERSION"/>
+        <sequential>
+            <copy todir="${OUTPUT_DIR}">
+                <fileset dir="${API_EXPORT_FILES}"/>
+            </copy>
+            <java classname="com.sun.javacard.converter.Converter" fork="true" failonerror="true">
+                <arg line="-classdir '${OUTPUT_DIR}' -d '${OUTPUT_DIR}' -verbose -exportpath '${OUTPUT_DIR}' -out CAP JCA EXP @{PACKAGENAME} @{PACKAGEAID} @{VERSION}"/>
+                <classpath>
+                    <pathelement location="${JC_HOME}/lib/converter.jar"/>
+                    <pathelement location="${JC_HOME}/lib/offcardverifier.jar"/>
+                    <pathelement location="."/>
+                    <pathelement path="${java.class.path}"/>
+                </classpath>
+            </java>
+        </sequential>
+    </macrodef>
+
+    <macrodef name="generate_cap">
+        <attribute name="PACKAGENAMEUNPACKAGED"/>
+        <attribute name="APPLETNAME"/>
+        <sequential>
+            <java classname="com.sun.javacard.jcasm.cap.Main" fork="true" failonerror="true">
+                <arg value="-o${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{APPLETNAME}.jar"/>
+                <arg value="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{APPLETNAME}.jca"/>
+                <classpath>
+                    <pathelement location="${JC_HOME}/lib/converter.jar"/>
+                    <pathelement location="${JC_HOME}/lib/offcardverifier.jar"/>
+                    <pathelement location="."/>
+                    <pathelement path="${java.class.path}"/>
+                </classpath>
+            </java>
+        </sequential>
+    </macrodef>
+
+    <macrodef name="verify_cap">
+        <attribute name="PACKAGENAMEUNPACKAGED"/>
+        <attribute name="APPLETNAME"/>
+        <attribute name="ADDEXPFILES"/>
+        <sequential>
+            <java classname="com.sun.javacard.offcardverifier.Verifier" fork="true" failonerror="true">
+                <arg line="-verbose ${API_EXPORT_FILES}/java/lang/javacard/lang.exp ${API_EXPORT_FILES}/javacard/framework/javacard/framework.exp ${API_EXPORT_FILES}/javacardx/crypto/javacard/crypto.exp ${API_EXPORT_FILES}/javacard/security/javacard/security.exp ${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{APPLETNAME}.exp @{ADDEXPFILES} ${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{APPLETNAME}.cap"/>
+                <classpath>
+                    <pathelement location="${JC_HOME}/lib/offcardverifier.jar"/>
+                    <pathelement location="."/>
+                    <pathelement path="${java.class.path}"/>
+                </classpath>
+            </java>
+        </sequential>
+    </macrodef>
+
+    <macrodef name="generate_applet_bin_std">
+        <attribute name="PACKAGENAMEUNPACKAGED"/>
+        <attribute name="APPLETNAME"/>
+        <sequential>
+            <unjar src="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{APPLETNAME}.cap"
+                   dest="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard"/>
+            <concat binary="yes"
+                    destfile="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{APPLETNAME}.ijc">
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/Header.cap"/>
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/Directory.cap"/>
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/Import.cap"/>
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/Applet.cap"/>
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/Class.cap"/>
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/Method.cap"/>
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/StaticField.cap"/>
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/ConstantPool.cap"/>
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/RefLocation.cap"/>
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/Descriptor.cap"/>
+            </concat>
+        </sequential>
+    </macrodef>
+
+    <macrodef name="generate_library_bin_std">
+        <attribute name="PACKAGENAMEUNPACKAGED"/>
+        <attribute name="APPLETNAME"/>
+        <sequential>
+            <unjar src="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{APPLETNAME}.cap"
+                   dest="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard"/>
+            <concat binary="true"
+                    destfile="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{APPLETNAME}.ijc">
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/Header.cap"/>
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/Directory.cap"/>
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/Import.cap"/>
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/Class.cap"/>
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/Method.cap"/>
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/StaticField.cap"/>
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/Export.cap"/>
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/ConstantPool.cap"/>
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/RefLocation.cap"/>
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/Descriptor.cap"/>
+            </concat>
+        </sequential>
+    </macrodef>
+
+    <macrodef name="generate_library_bin_egate" description="Generating binary file for egate card">
+        <attribute name="MODULENAME"/>
+        <attribute name="PACKAGENAMEUNPACKAGED"/>
+        <sequential>
+            <java jar="${JC_HOME}/lib/captransf.jar" fork="true" failonerror="true" description="Transforming cap file">
+                <arg value="-noint"/>
+                <arg value="-s"/>
+                <arg value="${OUTPUT_DIR}"/>
+                <arg value="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{MODULENAME}.cap"/>
+                <classpath>
+                    <pathelement location="."/>
+                    <pathelement path="${java.class.path}"/>
+                </classpath>
+            </java>
+
+            <unjar src="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{MODULENAME}.cap.transf"
+                   dest="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard"/>
+            <concat binary="true"
+                    destfile="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{MODULENAME}.ijc">
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/Header.cap"/>
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/Directory.cap"/>
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/Import.cap"/>
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/Class.cap"/>
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/Method.cap"/>
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/StaticField.cap"/>
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/Export.cap"/>
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/ConstantPool.cap"/>
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/RefLocation.cap"/>
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/Descriptor.cap"/>
+            </concat>
+        </sequential>
+    </macrodef>
+
+    <macrodef name="generate_applet_bin_egate" description="Generating binary file for egate card">
+        <attribute name="MODULENAME"/>
+        <attribute name="PACKAGENAMEUNPACKAGED"/>
+        <sequential>
+            <java jar="${JC_HOME}/lib/captransf.jar" fork="true" failonerror="true" description="Transforming cap file">
+                <arg value="-noint"/>
+                <arg value="-s"/>
+                <arg value="${OUTPUT_DIR}"/>
+                <arg value="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{MODULENAME}.cap"/>
+                <classpath>
+                    <pathelement location="."/>
+                    <pathelement path="${java.class.path}"/>
+                </classpath>
+            </java>
+
+            <unjar src="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{MODULENAME}.cap.transf"
+                   dest="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard"/>
+            <concat binary="yes"
+                    destfile="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{MODULENAME}.ijc">
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/Header.cap"/>
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/Directory.cap"/>
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/Import.cap"/>
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/Applet.cap"/>
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/Class.cap"/>
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/Method.cap"/>
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/StaticField.cap"/>
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/ConstantPool.cap"/>
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/RefLocation.cap"/>
+                <fileset
+                        file="${OUTPUT_DIR}/@{PACKAGENAMEUNPACKAGED}/javacard/@{PACKAGENAMEUNPACKAGED}/javacard/Descriptor.cap"/>
+            </concat>
+        </sequential>
+    </macrodef>
+
+
+    <target description="Cleans up generated files" name="clean.all">
+        <mkdir dir="${OUTPUT_DIR}"/>
+        <delete includeEmptyDirs="true">
+            <fileset dir="${OUTPUT_DIR}/"/>
+        </delete>
+    </target>
+</project>
