@@ -21,7 +21,7 @@ public class HelloWorld extends Applet {
      * @noinspection UnusedDeclaration
      */
     public void process(APDU apdu) {
-        byte buffer[] = apdu.getBuffer();
+        byte[] buffer = apdu.getBuffer();
         short lc = apdu.setIncomingAndReceive();
         apdu.setOutgoingAndSend(ISO7816.OFFSET_CDATA, lc);
     }

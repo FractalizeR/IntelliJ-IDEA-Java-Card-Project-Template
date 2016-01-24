@@ -18,3 +18,4 @@ Setup
 
 If you have more than one applet in the project, edit build.xml and add a second entry under each <target> tag with the info you need.
 
+Now you have build your applet using IDEA's menu '`Build` -> `Make project`.
